@@ -1,14 +1,18 @@
-Item,Quantity,Unit Price (TL),Total Price (TL),Supplier,Shipping (TL),Purchase Link
-"LG HG2 3000 mAh 3.7 V 20A 18650 Li-ion Battery",3,299.00,897.00,Trendyol,59.99,https://www.trendyol.com/lg/hg2-3000-mah-3-7-v-20a-18650-li-ion-sarj-edilebilir-pil-p-142219925
-"ESP32-S3 N16R8 Development Board",1,568.26,568.26,Direnç.net,144.00,https://www.direnc.net/esp32-s3-n16r8
-"1.3"" SSD1306 OLED Display (I2C)",1,227.31,227.31,Direnç.net,0.00,https://www.direnc.net/13-inc-4-pin-oled-ekran-modulu-ssd1306-i2c-beyaz
-"Speaker 4 Ω 5 W (66 × 66 mm)",2,86.40,172.80,Motorobit,137.00,http://motorobit.com/hoparlor-4-ohm-4%CE%A9-5w-66x66mm
-"VHM-314 Bluetooth 5.0 Audio Receiver Module",1,111.60,111.60,Robo90,0.00,https://www.robo90.com/bluetooth-50-mikrofonlu-mp3-stereo-muzik-modulu-ses-alicisi
-"PAM8610 Digital Audio Amplifier",1,83.70,83.70,Robo90,0.00,https://www.robo90.com/pam8610-mini-dijital-ses-yukseltici
-"3S Li-ion/LiPo Battery Charger (12.6 V 2 A)",1,52.20,52.20,Robolink Market,0.00,https://www.robolinkmarket.com/3s-lion-ve-lipo-sarj-modulu
-"MP1584 Step-Down Voltage Regulator 3A",1,50.22,50.22,Robo90,0.00,https://www.robo90.com/mp1584-dusurucu-voltaj-regulatoru-buck-3a
-"PCM5102A I2S DAC Audio Decoder Module",1,50.22,50.22,Robo90,0.00,https://www.robo90.com/pcm5102a-i2s-dac-dekoder-modul
-"3S 20A Battery Management System (BMS)",1,50.40,50.40,Robolink Market,0.00,https://www.robolinkmarket.com/3s-20a-bms-batarya-yonetim-ve-koruma-modulu
-"Micro SD Card Reader Module",1,30.69,30.69,Robo90,0.00,https://www.robo90.com/micro-sd-kart-okuyucu-modulu-arduino-uyumlu
-"6x6 mm Tactile Push Button (4.3 mm Height)",7,1.48,10.36,Direnç.net,0.00,https://www.direnc.net/6x6-42mm-tach-buton-4-bacak-en
-"KCD1-101 3-Pin Mini Power Switch",1,5.18,5.18,Motorobit,0.00,https://www.motorobit.com/kcd11-3-pin-mini-on-off-anahtar-siyah
+| NAME | QUANTITY | PRICE PER UNIT (TL) | TOTAL (TL) | SELLER | SHIPPING (TL) | LINK |
+|------|---------:|--------------------:|-----------:|--------|--------------:|------|
+| LG HG2 3000 mAh 3.7V 20A 18650 Li-ion Battery | 3 | 299.00 | 897.00 | Trendyol | 59.99 | https://www.trendyol.com/lg/hg2-3000-mah-3-7-v-20a-18650-li-ion-sarj-edilebilir-pil-p-142219925 |
+| 1.3" SSD1306 OLED Screen | 1 | 227.31 | 227.31 | Direnç.net | 144.00 | https://www.direnc.net/13-inc-4-pin-oled-ekran-modulu-ssd1306-i2c-beyaz |
+| ESP32-S3 N16R8 | 1 | 568.26 | 568.26 | Direnç.net | 0.00 | ESP32 S3 N16R8 WiFi Bluetooth Board |
+| 6x6 4.3mm Tact Button | 7 | 1.48 | 10.36 | Direnç.net | 0.00 | https://www.direnc.net/6x6-42mm-tach-buton-4-bacak-en |
+| Speaker 4Ω 5W 66×66mm | 2 | 86.40 | 172.80 | Motorobit | 137.00 | http://motorobit.com/hoparlor-4-ohm-4%CE%A9-5w-66x66mm |
+| MP1584 Step-Down Voltage Regulator 3A | 1 | 50.22 | 50.22 | Robo90 | 0.00 | https://www.robo90.com/mp1584-dusurucu-voltaj-regulatoru-buck-3a |
+| Micro SD Card Reader | 1 | 30.69 | 30.69 | Robo90 | 0.00 | https://www.robo90.com/micro-sd-kart-okuyucu-modulu-arduino-uyumlu |
+| PAM8610 Sound Booster | 1 | 83.70 | 83.70 | Robo90 | 0.00 | https://www.robo90.com/pam8610-mini-dijital-ses-yukseltici |
+| PCM5102A I2S DAC Audio Decoder Module | 1 | 50.22 | 50.22 | Robo90 | 0.00 | https://www.robo90.com/pcm5102a-i2s-dac-dekoder-modul |
+| 3S 20A BMS | 1 | 50.40 | 50.40 | Robolink Market | 0.00 | https://www.robolinkmarket.com/3s-20a-bms-batarya-yonetim-ve-koruma-modulu |
+| 3S Li-ion and LiPo Battery Charging Module 12.6V 2A | 1 | 52.20 | 52.20 | Robolink Market | 0.00 | https://www.robolinkmarket.com/3s-lion-ve-lipo-sarj-modulu |
+| KCD1-101 3-Pin Mini | 1 | 5.18 | 5.18 | Motorobit | 0.00 | https://www.motorobit.com/kcd11-3-pin-mini-on-off-anahtar-siyah |
+| VHM-314 | 1 | 111.60 | 111.60 | Robo90 | 0.00 | https://www.robo90.com/bluetooth-50-mikrofonlu-mp3-stereo-muzik-modulu-ses-alicisi |
+| **Components Total** |  |  | **2,310.94 TL** |  |  |  |
+| **Shipping Total** |  |  | **340.99 TL** |  |  |  |
+| **Grand Total** |  |  | **2,651.93 TL** |  |  |  |
