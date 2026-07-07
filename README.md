@@ -60,3 +60,6 @@ Preprogrammed versions are available at firmware/bluetooth.ino firmware/onlySD.i
 3. Flash the firmware to the esp32
 4. Charge the batteries
 5. Connect all of the 3d printed pieces together and you are good to go
+
+# AI usage
+AI was used to help write the firmware for this project and part selection.
