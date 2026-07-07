@@ -8,37 +8,31 @@
 #include <vector>
 #include <algorithm>
 
-// --- OLED Ekran Ayarları (SDA: 8, SCL: 9) ---
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
-// --- Fiziksel Buton Giriş Pinleri (Kuzey'in Kontrol Paneli) ---
-#define BTN_VOL_UP   3   // Ses +
-#define BTN_VOL_DN   35  // Ses -
-#define BTN_PLAY     36  // Oynat / Durdur
-#define BTN_MODE     48  // Çalma Modu Değiştir (Normal / Shuffle / Repeat All / Repeat One)
-#define BTN_PREV     47  // Önceki Şarkı
-#define BTN_NEXT     21  // Sonraki Şarkı
+#define BTN_VOL_UP   3   // Volume +
+#define BTN_VOL_DN   35  // Volume -
+#define BTN_PLAY     36  // Start / Stop
+#define BTN_MODE     48  // (Normal / Shuffle / Repeat All / Repeat One)
+#define BTN_PREV     47  // previus song
+#define BTN_NEXT     21  // next song
 
-// --- SD Kart SPI Pin Ayarları ---
 #define SD_CS_PIN    10
 #define SPI_MOSI_PIN 11
 #define SPI_SCK_PIN  12
 #define SPI_MISO_PIN 13
 
-// --- PCM5102A Mor Kart I2S Pin Ayarları ---
 #define I2S_BCK_PIN  4      
 #define I2S_DATA_PIN 5      
 #define I2S_LCK_PIN  6      
 
 Audio audio;
 
-// --- Gelişmiş Çalma Modları ---
 enum PlayMode { NORMAL, SHUFFLE, REPEAT_ALL, REPEAT_ONE };
 PlayMode currentMode = NORMAL;
 
-// --- Dinamik Şarkı Listesi Hafızası ---
 std::vector<String> playlist;
 std::vector<int> shuffleOrder;
 int currentTrackIndex = 0;
@@ -59,20 +53,18 @@ unsigned long lastBtnTime = 0;
 const int debounce = 250; 
 bool needsRedraw = true;
 
-// --- SD Kartı Alt Klasörlerle Birlikte Otomatik Tarama (Recursive) ---
 void scanSDCard(File dir) {
   while (true) {
     File entry = dir.openNextFile();
     if (!entry) {
-      break; // Taranacak dosya kalmadı
+      break;
     }
     
     if (entry.isDirectory()) {
-      scanSDCard(entry); // Alt klasör bulursa içine gir (Recursive)
+      scanSDCard(entry);
     } else {
       String fileName = entry.name();
       if (fileName.endsWith(".mp3") || fileName.endsWith(".MP3")) {
-        // Tam dosya yolunu listeye ekle
         playlist.push_back(String(entry.path()));
       }
     }
@@ -80,13 +72,11 @@ void scanSDCard(File dir) {
   }
 }
 
-// --- Karıştırma (Shuffle) Sırasını Oluşturma ---
 void generateShuffleOrder() {
   shuffleOrder.clear();
   for (int i = 0; i < playlist.size(); i++) {
     shuffleOrder.push_back(i);
   }
-  // Rastgele karıştır
   for (int i = shuffleOrder.size() - 1; i > 0; i--) {
     int j = random(0, i + 1);
     std::swap(shuffleOrder[i], shuffleOrder[j]);
@@ -94,7 +84,6 @@ void generateShuffleOrder() {
   shufflePosition = 0;
 }
 
-// --- Şarkı İsmini Temizleme (.mp3 kaldırır, klasör yollarını eler) ---
 String getCleanTrackName(String path) {
   int lastSlash = path.lastIndexOf('/');
   String name = (lastSlash >= 0) ? path.substring(lastSlash + 1) : path;
@@ -143,7 +132,6 @@ void drawStatic() {
   display.clearDisplay();
   display.drawRoundRect(0, 0, 128, 64, 12, SSD1306_WHITE);
 
-  // Buton Grafikleri
   display.drawCircle(28, 22, 10, SSD1306_WHITE);
   display.fillTriangle(30, 18, 30, 26, 24, 22, SSD1306_WHITE);
   display.drawFastVLine(24, 18, 9, SSD1306_WHITE);
@@ -160,14 +148,12 @@ void drawStatic() {
   display.fillTriangle(98, 18, 98, 26, 104, 22, SSD1306_WHITE);
   display.drawFastVLine(104, 18, 9, SSD1306_WHITE);
 
-  // Sol Üst: Ses Seviyesi
   display.setTextSize(1);
   display.setTextColor(SSD1306_WHITE);
   display.setCursor(8, 6);
   display.print("V:%");
   display.print(displayVolPercent);
 
-  // Sağ Üst: Dinamik Şarkı Sayacı (Örn: 12/84) ve Mod Simgesi
   display.setCursor(82, 6);
   if (playlist.empty()) {
     display.print("00/00");
@@ -179,14 +165,12 @@ void drawStatic() {
     display.print(playlist.size());
   }
 
-  // Mod Bildirimi Ekranda Küçük Yazı
   display.setCursor(12, 18);
   if (currentMode == SHUFFLE) display.print("SHUF");
   else if (currentMode == REPEAT_ALL) display.print("R_ALL");
   else if (currentMode == REPEAT_ONE) display.print("R_ONE");
   else display.print("NORM");
 
-  // İlerleme Çubuğu
   display.drawRoundRect(20, 54, 88, 4, 1, SSD1306_WHITE);
   uint32_t audioLen = audio.getAudioFileDuration();
   uint32_t audioCur = audio.getAudioCurrentTime();
@@ -272,7 +256,6 @@ void checkButtons() {
     lastBtnTime = now;
   }
   else if (digitalRead(BTN_MODE) == LOW) {
-    // Çalma modunu döngüsel olarak değiştir
     currentMode = (PlayMode)((currentMode + 1) % 4);
     if (currentMode == SHUFFLE) {
       generateShuffleOrder();
@@ -283,7 +266,6 @@ void checkButtons() {
 }
 
 void setup() {
-  // Rastgele sayı üretecini boş analog pinden besle (Shuffle için hayati)
   randomSeed(analogRead(0));
 
   pinMode(BTN_VOL_UP, INPUT_PULLUP);
@@ -304,8 +286,7 @@ void setup() {
     drawStatic();
     for (;;);
   }
-
-  // SD Kartı Tara
+  //read sd card info
   File root = SD.open("/");
   scanSDCard(root);
   root.close();
@@ -316,13 +297,11 @@ void setup() {
     for (;;);
   }
 
-  // Şarkıları Alfabetik Olarak Sırala
   std::sort(playlist.begin(), playlist.end());
 
   audio.setPinout(I2S_BCK_PIN, I2S_LCK_PIN, I2S_DATA_PIN);
   audio.setVolume(volumePercent);
-
-  // İlk şarkıyı başlat
+  //start the first song
   playTrack(currentTrackIndex);
 }
 
@@ -344,19 +323,16 @@ void loop() {
   updateScrollingText();
 }
 
-// --- Şarkı Bittiğinde Tetiklenen Kütüphane Fonksiyonu ---
 void audio_eof_mp3(const char *info) {
   if (currentMode == REPEAT_ONE) {
-    playTrack(currentTrackIndex); // Aynı şarkıyı baştan çal
+    playTrack(currentTrackIndex); 
   } else if (currentMode == NORMAL && currentTrackIndex == playlist.size() - 1) {
-    // Normal modda son şarkı bittiyse durdur
     isPlaying = false;
     needsRedraw = true;
   } else {
-    nextTrack(); // Shuffle veya Repeat All durumunda direkt sonrakine geç
+    nextTrack(); 
   }
 }
 
-// Boş bırakılan zorunlu kütüphane fonksiyonları
 void audio_info(const char *info){}
 void audio_id3data(const char *info){}
