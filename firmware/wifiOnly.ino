@@ -18,9 +18,9 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 #define BTN_NEXT     21  // next song
 
 
-#define I2S_BCK_PIN  4      // Şemandaki BCK
-#define I2S_DATA_PIN 5      // Şemandaki DIN
-#define I2S_LCK_PIN  6      // Şemandaki LCK (WS)
+#define I2S_BCK_PIN  4    
+#define I2S_DATA_PIN 5      
+#define I2S_LCK_PIN  6    
 
 const char* ssid     = "YOUR_WIFI_SSID";     // YOUR wifi settings
 const char* password = "YOUR_WIFI_PASSWORD"; 
