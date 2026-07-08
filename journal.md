@@ -132,7 +132,7 @@ Today i learned the sad news that we needed to connect the batteries better with
 Recordings:
 https://lapse.hackclub.com/timelapse/i443_Us5i-Yl
 
-# July 5th: 
+# July 5th: Speaker protector and schematics
 Author: craftfec
 
 Today i added a speaker protector to our top and bottom parts and sent the models to print to my friend Derin and started working on the schematics on circitdesigner
@@ -145,7 +145,7 @@ Recordings:
 https://lapse.hackclub.com/timelapse/fUiaW7e-g2Ig
 https://lapse.hackclub.com/timelapse/-oq5R-IBSlbL
 
-# July 6th: 
+# July 6th: BLE issues
 Author: craftfec
 
 Today i finished up the schematics design and realized the bluetooth on the esp32 s3 does not have regular bluetooth but only has Bluetooth low energy so we added a new component VHM-314 to our schematics and to our bom.
@@ -160,7 +160,7 @@ Recordings:
 https://lapse.hackclub.com/timelapse/h-_9Gzua42wM
 https://lapse.hackclub.com/timelapse/YINomfWPwFnc
 
-# July 6th: 
+# July 6th: Right side of the case
 Author: D_R1N
 
 Today i printed the right side of the case design and continued my work on the left side integrating the buttons, the on off switch the screen and more
@@ -171,3 +171,26 @@ Today i printed the right side of the case design and continued my work on the l
 **Total time spent: 2h 51m 9s**
 Recordings:
 https://lapse.hackclub.com/timelapse/utEOT1DLX6nZ
+
+
+# July 7th: Issues with the Esp32 S3
+Author: D_R1N
+
+Today i had some issues with flashing the test firmwares to the esp32 s3 since i couldnt meet up with kuzey because of the NATO Ankara Summit i decided to use my cheap and probably cloned esp32D and still could not get the oled display to work with both of my esp32's :(
+
+<img width="994" height="127" alt="image" src="https://github.com/user-attachments/assets/df4505a9-6e05-4a26-9a3e-53324740a9d5" />
+<img width="327" height="566" alt="image" src="https://github.com/user-attachments/assets/c6ee47bd-dfae-4434-8b4a-7965f56cf7a9" />
+
+**Total time spent: 4h 35m 01s**
+Recordings:
+https://lapse.hackclub.com/timelapse/nuqc9frhJh3B
+
+# July 7th: Issues with the Esp32 S3 and firmware
+Author: craftfec
+
+Today i countinued my day by writing the firmware but recieved the sad news that my friend couldnt flash anything on the chip i previously tested and managed to work then continued by trying to help him but achieved no success with the esp32 s3 AND the oled screen hopefully we will meet sometime and get those fixed
+<img width="509" height="357" alt="image" src="https://github.com/user-attachments/assets/44a569ba-b7af-4641-815b-07bc0479fe03" />
+
+**Total time spent: 3h 37s**
+Recordings:
+https://lapse.hackclub.com/timelapse/Q2pDoU28dboI
