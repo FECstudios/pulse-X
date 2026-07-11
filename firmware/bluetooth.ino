@@ -1,237 +1,332 @@
-#include "Arduino.h"
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
-#include <driver/i2s.h> 
+#include <SPI.h>
+#include <SD.h>
+#include <Audio.h>
 
-// oled screen settings
+// --- OLED ---
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
+#define SDA_PIN 8
+#define SCL_PIN 9
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
-// buttons
-#define BTN_VOL_UP   3   // Volume +
-#define BTN_VOL_DN   35  // Volume -
-#define BTN_PLAY     36  // Start / Stop
-#define BTN_MODE     48  // (Normal / Shuffle / Repeat All / Repeat One)
-#define BTN_PREV     47  // previus song
-#define BTN_NEXT     21  // next song
+// --- SD ---
+#define SD_CS    10
+#define SPI_MOSI 11
+#define SPI_SCK  12
+#define SPI_MISO 13
 
+// --- I2S ---
+#define I2S_BCLK 5
+#define I2S_LRC  7
+#define I2S_DOUT 6
 
-#define ANALOG_LEFT_PIN  1 
-#define ANALOG_RIGHT_PIN 2 
+// --- Butonlar ---
+#define BTN_VOL_UP 3
+#define BTN_VOL_DN 41
+#define BTN_PLAY   40
+#define BTN_PREV   47
+#define BTN_NEXT   21
 
-#define I2S_BCK_PIN  4      
-#define I2S_DATA_PIN 5      
-#define I2S_LCK_PIN  6     
+// --- VHM-314 kontrol pinleri ---
+// VHM-314'ün KEY pinine bağla — LOW = play/pause, pulse = next/prev
+#define VHM_PLAY_PIN 15
+#define VHM_NEXT_PIN 16
+#define VHM_PREV_PIN 17
+
+Audio audio;
+
+// Sistem dosyaları — playlist'e alınmayacak
+const String SYS_FILES[] = {"/0001.mp3", "/0002.mp3", "/0003.mp3", "/0004.mp3"};
+#define SYS_FILE_COUNT 4
+
+#define MAX_TRACKS 100
+String playlist[MAX_TRACKS];
+int totalTracks = 0;
+int currentTrackIndex = 0;
 
 bool isPlaying = true;
-int volumePercent = 75; 
-int progress = 0;
-String currentTrackName = "Pulse-X Bluetooth 5.0 Audio Stream";
-
-int scrollX = 12;
-unsigned long lastScrollTime = 0;
-const int scrollSpeed = 35;
-const int startDelay = 2000;
-bool isDelaying = true;
+int volumePercent = 14;
+bool btMode = false;       // false = SD, true = BT (VHM-314)
+bool pendingEof = false;
 
 unsigned long lastBtnTime = 0;
-const int debounce = 250; 
-bool needsRedraw = true;
+const int debounce = 250;
 
-
-void init_i2s_dac() {
-  i2s_config_t i2s_config = {
-    .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_TX),
-    .sample_rate = 44100,                           
-    .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,   
-    .channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT,   
-    .communication_format = I2S_COMM_FORMAT_STAND_MSB,
-    .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,       
-    .dma_buf_count = 8,                             
-    .dma_buf_len = 64,
-    .use_apll = false,
-    .tx_desc_auto_clear = true
-  };
-
-  i2s_pin_config_t pin_config = {
-    .bck_io_num = I2S_BCK_PIN,     
-    .ws_io_num = I2S_LCK_PIN,      
-    .data_out_num = I2S_DATA_PIN,  
-    .data_in_num = I2S_PIN_NO_CHANGE
-  };
-
- 
-  i2s_driver_install(I2S_NUM_0, &i2s_config, 0, NULL);
-  i2s_set_pin(I2S_NUM_0, &pin_config);
-  i2s_zero_dma_buffer(I2S_NUM_0);
+// --- VHM-314 sinyal gönder ---
+void vhmPulse(int pin, int ms = 200) {
+  digitalWrite(pin, LOW);
+  delay(ms);
+  digitalWrite(pin, HIGH);
 }
 
-
-void drawStatic() {
-  display.clearDisplay();
-  display.drawRoundRect(0, 0, 128, 64, 12, SSD1306_WHITE);
-
-
-  display.drawCircle(28, 22, 10, SSD1306_WHITE);
-  display.fillTriangle(30, 18, 30, 26, 24, 22, SSD1306_WHITE);
-  display.drawFastVLine(24, 18, 9, SSD1306_WHITE);
-
-
-  display.drawCircle(64, 22, 11, SSD1306_WHITE);
-  if (isPlaying) {
-    display.fillRect(61, 17, 2, 10, SSD1306_WHITE);
-    display.fillRect(65, 17, 2, 10, SSD1306_WHITE);
-  } else {
-    display.fillTriangle(61, 17, 61, 27, 69, 22, SSD1306_WHITE);
+bool isSysFile(const String& path) {
+  for (int i = 0; i < SYS_FILE_COUNT; i++) {
+    if (path.equalsIgnoreCase(SYS_FILES[i])) return true;
   }
-
-
-  display.drawCircle(100, 22, 10, SSD1306_WHITE);
-  display.fillTriangle(98, 18, 98, 26, 104, 22, SSD1306_WHITE);
-  display.drawFastVLine(104, 18, 9, SSD1306_WHITE);
-
-  display.setTextSize(1);
-  display.setTextColor(SSD1306_WHITE);
-  display.setCursor(8, 6);
-  display.print("V:%");
-  display.print(volumePercent);
-
-
-  display.setCursor(98, 6);
-  display.print("BT");
-
-  display.drawRoundRect(20, 54, 88, 4, 1, SSD1306_WHITE);
-  int filled = map(progress, 0, 100, 0, 86);
-  display.fillRect(21, 55, filled, 2, SSD1306_WHITE);
-
-  display.display();
+  return false;
 }
 
-
-void updateScrollingText() {
-  display.fillRect(11, 38, 106, 12, SSD1306_BLACK);
-  display.setTextColor(SSD1306_WHITE);
-  display.setTextSize(1);
-
-  int16_t x1, y1;
-  uint16_t trackWidth, trackHeight;
-  display.getTextBounds(currentTrackName.c_str(), 0, 0, &x1, &y1, &trackWidth, &trackHeight);
-
-  int maxVisibleWidth = 104;
-
-  if (trackWidth <= maxVisibleWidth) {
-    int staticX = (128 - trackWidth) / 2;
-    display.setCursor(staticX, 40);
-    display.print(currentTrackName);
-  } else {
-    unsigned long currentTime = millis();
-    if (isDelaying) {
-      if (currentTime - lastScrollTime > startDelay) {
-        isDelaying = false;
-        lastScrollTime = currentTime;
-      }
-    } else {
-      if (isPlaying && currentTime - lastScrollTime > scrollSpeed) {
-        scrollX--;
-        lastScrollTime = currentTime;
-        if (scrollX < -(int)trackWidth) {
-          scrollX = 12;
-          isDelaying = true;
-          lastScrollTime = currentTime;
-        }
+void scanFolder(File dir) {
+  while (true) {
+    File entry = dir.openNextFile();
+    if (!entry) break;
+    if (!entry.isDirectory()) {
+      String name = "/" + String(entry.name());
+      String nameLow = name;
+      nameLow.toLowerCase();
+      if (nameLow.endsWith(".mp3") && !isSysFile(nameLow) && totalTracks < MAX_TRACKS) {
+        playlist[totalTracks++] = name;
       }
     }
-    display.setCursor(scrollX, 40);
-    display.print(currentTrackName);
-    display.fillRect(1, 38, 10, 11, SSD1306_BLACK);
-    display.fillRect(117, 38, 10, 11, SSD1306_BLACK);
+    entry.close();
   }
+}
+
+// --- Startup sesi çal, bitince asıl parçayı başlat ---
+bool startupPlayed = false;
+
+void playSysSound(const char* path) {
+  if (SD.exists(path)) {
+    audio.connecttoFS(SD, path);
+  }
+}
+
+// --- OLED ---
+void showStatus() {
+  display.clearDisplay();
+  display.drawRoundRect(0, 0, 128, 64, 6, SSD1306_WHITE);
+  display.drawFastHLine(2, 12, 124, SSD1306_WHITE);
+
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(5, 2);
+  display.print("PULSE-X");
+
+  // Mod göstergesi
+  display.setCursor(85, 2);
+  if (btMode) {
+    display.print("\xF0 BT"); // BT simgesi yerine "BT"
+  } else {
+    display.print("SD \x10");
+  }
+
+  // Durum
+  display.setCursor(5, 16);
+  if (btMode) {
+    display.print("  BLUETOOTH MODE");
+    display.setCursor(5, 30);
+    display.print("   VHM-314 aktif");
+    display.setCursor(5, 44);
+    display.print("Telefon baglayabilirsin");
+  } else {
+    // Play/Pause
+    display.setCursor(34, 16);
+    if (isPlaying) {
+      display.print("\x10 PLAYING");
+    } else {
+      display.print("|| PAUSED ");
+    }
+
+    // Dosya adı — uzunsa kırp
+    String name = playlist[currentTrackIndex];
+    name.replace("/", "");
+    if (name.length() > 16) name = name.substring(0, 15) + "~";
+    display.setCursor(5, 30);
+    display.print(name);
+
+    // Track no
+    display.setCursor(5, 43);
+    display.print(currentTrackIndex + 1);
+    display.print("/");
+    display.print(totalTracks);
+
+    // Volume bar
+    display.setCursor(50, 43);
+    display.print("VOL:");
+    display.drawRect(80, 42, 42, 8, SSD1306_WHITE);
+    int bar = map(volumePercent, 0, 21, 0, 40);
+    display.fillRect(81, 43, bar, 6, SSD1306_WHITE);
+  }
+
   display.display();
+}
+
+void showBoot(const char* msg) {
+  display.clearDisplay();
+  display.drawRoundRect(0, 0, 128, 64, 6, SSD1306_WHITE);
+  display.setCursor(5, 5);
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+  display.print("PULSE-X");
+  display.drawFastHLine(2, 14, 124, SSD1306_WHITE);
+  display.setCursor(5, 20);
+  display.print(msg);
+  display.display();
+}
+
+void playTrack(int index) {
+  audio.connecttoFS(SD, playlist[index].c_str());
+  isPlaying = true;
+  showStatus();
 }
 
 void checkButtons() {
-  unsigned long now = millis();
-  if (now - lastBtnTime < debounce) return;
+  if (millis() - lastBtnTime < debounce) return;
 
-  if (digitalRead(BTN_VOL_UP) == LOW) {
-    volumePercent = min(100, volumePercent + 5);
-    needsRedraw = true;
-    lastBtnTime = now;
+  static bool upL=HIGH, dnL=HIGH, plL=HIGH, prL=HIGH, nxL=HIGH;
+  bool changed = false;
+
+  bool up = digitalRead(BTN_VOL_UP);
+  if (up == LOW && upL == HIGH) {
+    volumePercent = min(21, volumePercent + 1);
+    if (!btMode) {
+      audio.setVolume(volumePercent);
+      playSysSound("/0003.mp3"); // vol+ sesi
+    }
+    showStatus();
+    changed = true;
   }
-  else if (digitalRead(BTN_VOL_DN) == LOW) {
-    volumePercent = max(0, volumePercent - 5);
-    needsRedraw = true;
-    lastBtnTime = now;
+  upL = up;
+
+  bool dn = digitalRead(BTN_VOL_DN);
+  if (dn == LOW && dnL == HIGH) {
+    volumePercent = max(0, volumePercent - 1);
+    if (!btMode) {
+      audio.setVolume(volumePercent);
+      playSysSound("/0004.mp3"); // vol- sesi
+    }
+    showStatus();
+    changed = true;
   }
-  else if (digitalRead(BTN_PLAY) == LOW) {
-    isPlaying = !isPlaying;
-    needsRedraw = true;
-    lastBtnTime = now;
+  dnL = dn;
+
+  bool pl = digitalRead(BTN_PLAY);
+  if (pl == LOW && plL == HIGH) {
+    if (btMode) {
+      vhmPulse(VHM_PLAY_PIN); // VHM-314'e play/pause
+    } else {
+      audio.pauseResume();
+      isPlaying = !isPlaying;
+    }
+    showStatus();
+    changed = true;
   }
-  else if (digitalRead(BTN_NEXT) == LOW || digitalRead(BTN_PREV) == LOW) {
-    progress = 0; 
-    needsRedraw = true;
-    lastBtnTime = now;
+  plL = pl;
+
+  bool pr = digitalRead(BTN_PREV);
+  if (pr == LOW && prL == HIGH) {
+    if (btMode) {
+      vhmPulse(VHM_PREV_PIN);
+    } else {
+      currentTrackIndex = (currentTrackIndex - 1 + totalTracks) % totalTracks;
+      playTrack(currentTrackIndex);
+    }
+    showStatus();
+    changed = true;
   }
+  prL = pr;
+
+  bool nx = digitalRead(BTN_NEXT);
+  if (nx == LOW && nxL == HIGH) {
+    if (btMode) {
+      vhmPulse(VHM_NEXT_PIN);
+    } else {
+      currentTrackIndex = (currentTrackIndex + 1) % totalTracks;
+      playTrack(currentTrackIndex);
+    }
+    showStatus();
+    changed = true;
+  }
+  nxL = nx;
+
+  // PREV + NEXT aynı anda = mod değiştir
+  if (pr == LOW && nx == LOW) {
+    btMode = !btMode;
+    if (btMode) {
+      audio.stopSong();
+    } else {
+      audio.setPinout(I2S_BCLK, I2S_LRC, I2S_DOUT);
+      audio.setVolume(volumePercent);
+      playTrack(currentTrackIndex);
+    }
+    showStatus();
+    delay(500);
+    lastBtnTime = millis();
+    return;
+  }
+
+  if (changed) lastBtnTime = millis();
 }
 
 void setup() {
+  Serial.begin(115200);
+  delay(300);
 
   pinMode(BTN_VOL_UP, INPUT_PULLUP);
   pinMode(BTN_VOL_DN, INPUT_PULLUP);
   pinMode(BTN_PLAY,   INPUT_PULLUP);
-  pinMode(BTN_BT,     INPUT_PULLUP);
   pinMode(BTN_PREV,   INPUT_PULLUP);
   pinMode(BTN_NEXT,   INPUT_PULLUP);
 
-  analogReadResolution(12);
+  pinMode(VHM_PLAY_PIN, OUTPUT); digitalWrite(VHM_PLAY_PIN, HIGH);
+  pinMode(VHM_NEXT_PIN, OUTPUT); digitalWrite(VHM_NEXT_PIN, HIGH);
+  pinMode(VHM_PREV_PIN, OUTPUT); digitalWrite(VHM_PREV_PIN, HIGH);
 
-
-  Wire.begin(8, 9);
+  Wire.begin(SDA_PIN, SCL_PIN);
   Wire.setClock(400000);
+  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) while (1);
+  display.setTextWrap(false);
+  display.setRotation(2);
 
-  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
-    for (;;); 
+  showBoot("SD baslatiliyor...");
+
+  SPI.begin(SPI_SCK, SPI_MISO, SPI_MOSI, SD_CS);
+  if (!SD.begin(SD_CS, SPI)) {
+    showBoot("SD KART YOK!");
+    while (1);
   }
 
-  display.setTextWrap(false);
-  init_i2s_dac(); 
-  drawStatic();
+  File root = SD.open("/");
+  scanFolder(root);
+  root.close();
+
+  if (totalTracks == 0) {
+    showBoot("MP3 bulunamadi!");
+    while (1);
+  }
+
+  audio.setPinout(I2S_BCLK, I2S_LRC, I2S_DOUT);
+  audio.setVolume(volumePercent);
+
+  // Startup sesi çal
+  showBoot("Hosgeldin!");
+  playSysSound("/0001.mp3");
+  // audio_eof_mp3 callback'i ilk parçayı başlatacak
 }
 
 void loop() {
+  audio.loop();
   checkButtons();
 
-
-  if (isPlaying) {
-    int16_t leftSample = (analogRead(ANALOG_LEFT_PIN) - 2048);
-    int16_t rightSample = (analogRead(ANALOG_RIGHT_PIN) - 2048);
-
-    leftSample = (leftSample * volumePercent) / 100 * 16;
-    rightSample = (rightSample * volumePercent) / 100 * 16;
-
-
-    int16_t i2sBuffer[2] = {leftSample, rightSample};
-    size_t bytesWritten;
-    
-    i2s_write(I2S_NUM_0, i2sBuffer, sizeof(i2sBuffer), &bytesWritten, portMAX_DELAY);
+  if (pendingEof && !btMode) {
+    pendingEof = false;
+    playTrack(currentTrackIndex);
   }
+}
 
-  if (needsRedraw) {
-    drawStatic();
-    needsRedraw = false;
+void audio_info(const char* info) { Serial.println(info); }
+
+void audio_eof_mp3(const char* info) {
+  if (!startupPlayed) {
+    startupPlayed = true;
+    playTrack(0); // startup bitti, ilk asıl parçayı başlat
+    return;
   }
-
-  updateScrollingText();
-
-  if (isPlaying) {
-    static unsigned long lastProgress = 0;
-    if (millis() - lastProgress > 1500) {
-      progress = (progress + 1) % 101;
-      lastProgress = millis();
-      needsRedraw = true;
-    }
+  if (!btMode) {
+    currentTrackIndex = (currentTrackIndex + 1) % totalTracks;
+    pendingEof = true; // loop'ta çal, callback içinde connecttoFS çağırma
   }
 }
