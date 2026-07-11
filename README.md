@@ -1,12 +1,12 @@
 # Pulse-X: Crowd Cheering Tool
 
-Pulse-X is a portable battery powered cylindrical speaker engineered for high-noise outdoor environments, such as sports stadiums and open-air events. By utilizing an independent, local Wi-Fi Access Point (AP) network, it bypasses traditional Bluetooth range limits and pairing issues to stream high-definition audio with ultra-low latency.
+Pulse-X is a portable battery powered cylindrical speaker engineered for high-noise outdoor environments, such as sports stadiums and open-air events. Works with wifi, bluetooth or locally with a sd card
 
 ## Renders
 <img width="686" height="403" alt="Pulse-X Hardware View" src="https://github.com/user-attachments/assets/dc31d1af-a8e4-449f-8a6b-3aa0df101d61" />
 
 ## Hardware Schematics
-<img width="1000" height="auto" alt="Pulse-X Circuit Diagram" src="https://github.com/user-attachments/assets/d92e4ddd-3754-4392-b152-778c538afc9e" />
+<img width="3000" height="2560" alt="circuit_image (6)" src="https://github.com/user-attachments/assets/5f80c291-9151-49b9-a680-37598e868892" />
 
 ## Images
 
