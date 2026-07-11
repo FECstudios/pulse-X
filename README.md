@@ -42,6 +42,7 @@ Pulse-X is powered by an ESP32-S3-WROOM-1. The ESP32 handles the web interface, 
 - 3S 20A Battery Management System (BMS)
 - 3S Li-ion/LiPo 12.6 V 2A Charging Module
 - KCD1-101 3-Pin Mini Power Switch
+- VHM-314 Bluetooth module
 
 | NAME | QUANTITY | PRICE PER UNIT (TL) | TOTAL (TL) | SELLER | SHIPPING (TL) | LINK |
 |------|---------:|--------------------:|-----------:|--------|--------------:|------|
