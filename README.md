@@ -1,6 +1,6 @@
 # Pulse-X: Crowd Cheering Tool
 
-Pulse-X is a portable battery powered cylindrical speaker engineered for high-noise outdoor environments, such as sports stadiums and open-air events. Works with wifi, bluetooth or locally with a sd card
+Pulse-X is a portable battery powered cylindrical speaker engineered for high-noise outdoor environments, such as sports stadiums and open-air events. Works with wifi, bluetooth or locally with a sd card.
 
 ## Renders
 <img width="686" height="403" alt="Pulse-X Hardware View" src="https://github.com/user-attachments/assets/dc31d1af-a8e4-449f-8a6b-3aa0df101d61" />
@@ -13,15 +13,18 @@ Pulse-X is a portable battery powered cylindrical speaker engineered for high-no
 ---
 # Technical Overview
 
-Pulse-X is powered by an ESP32-S3-WROOM-1. The ESP32 handles the web interface, audio streaming, and the OLED display at the same time. Audio is sent over I2S to a PCM5102A DAC, which provides much better sound quality than the built-in DAC found on many microcontrollers.
+Pulse-X is powered by an ESP32-S3-WROOM-1. The ESP32 handles the web interface, audio streaming, and the OLED display at the same time. Audio is sent over I2S to a PCM5102A DAC OR with VHM-314, which provides much better sound quality than the built-in DAC found on many microcontrollers.
 
 ## Features
 
 - Creates its own Wi-Fi access point, allowing devices to connect directly to the speaker without an internet connection.
 - Uses a PCM5102A I2S DAC for clean digital audio output.
+- Uses a VHM-314 instead of built in bluetooth for smoother audio.
 - 128×64 OLED display showing the current mode, volume level, playback status, and scrolling track names.
 - Six physical buttons for volume control, play/pause, previous track, next track, and mode switching.
 - Powered by a 3-cell Li-ion battery pack with a 3S BMS for battery protection and a buck converter to provide power to the components.
+- Bluetooth, wi-fi AND sd card connectivity.
+- On/Off and connection sounds
 
 ---
 
@@ -78,7 +81,9 @@ Preprogrammed versions are available at firmware/bluetooth.ino firmware/onlySD.i
 2. Solder and connect all of the components as shown in schematics
 3. Flash the firmware to the esp32
 4. Charge the batteries
-5. Connect all of the 3d printed pieces together and you are good to go
+5. Download your sound effects and preferred musics to the sd card
+6. Connect all of the 3d printed pieces together
+7. Connect to the device
 
 # AI usage
-AI was used to help write the firmware for this project and part selection.
+AI was used to help write the firmware for this project. AI was partly used in part selection and troubleshooting.
