@@ -13,7 +13,7 @@
 #include <WiFiUdp.h>
 #include <WebServer.h>
 
-// ── Pin tanımları ─────────────────────────────────────────────────────────────
+// ── Pins ──────────────────────────────────────────────────────────────────────
 #define SDA_PIN     8
 #define SCL_PIN     9
 #define SD_CS       10
@@ -29,16 +29,15 @@
 #define BTN_PREV    3
 #define BTN_NEXT    21
 
-// ── Ekran ─────────────────────────────────────────────────────────────────────
+// ── Display ───────────────────────────────────────────────────────────────────
 #define SCREEN_WIDTH  128
 #define SCREEN_HEIGHT 64
 
-// ── Sabitler ──────────────────────────────────────────────────────────────────
+// ── Constants ─────────────────────────────────────────────────────────────────
 #define MAX_TRACKS        100
 #define MAX_VOLUME        21
 #define DEBOUNCE_MS       250
-#define SCROLL_MS         30          // ms — küçük = daha smooth
-#define SCREENSAVER_MS    120000UL    // 2 dakika
+#define SCROLL_MS         30
 #define ANIM_MS           400
 
 // ── WiFi ──────────────────────────────────────────────────────────────────────
@@ -63,24 +62,22 @@ String  playlist[MAX_TRACKS];
 int     totalTracks     = 0;
 int     currentTrackIdx = 0;
 
-// ── Durum ─────────────────────────────────────────────────────────────────────
-bool    isPlaying        = false;
-bool    upnpMode         = false;
-bool    pendingEof       = false;
-bool    startupDone      = false;
-bool    sysSoundPlaying  = false;
+// ── State ─────────────────────────────────────────────────────────────────────
+bool    isPlaying       = false;
+bool    upnpMode        = false;
+bool    pendingEof      = false;
+bool    startupDone     = false;
+bool    sysSoundPlaying = false;
 
-int     volumePercent    = 11;
-unsigned long lastBtnTime      = 0;
-unsigned long lastActivityTime = 0;
-bool    screensaverActive = false;
+int     volumePercent   = 11;
+unsigned long lastBtnTime = 0;
 
 // ── Scroll ────────────────────────────────────────────────────────────────────
 int           scrollX        = 4;
 unsigned long lastScrollTime = 0;
 String        scrollName     = "";
 
-// ── Animasyon ─────────────────────────────────────────────────────────────────
+// ── Animation ─────────────────────────────────────────────────────────────────
 int           animFrame    = 0;
 unsigned long lastAnimTime = 0;
 
@@ -94,7 +91,7 @@ unsigned long lastSsdpTime = 0;
 #define SSDP_INTERVAL_MS  30000
 
 // ═════════════════════════════════════════════════════════════════════════════
-//  YARDIMCI
+//  HELPERS
 // ═════════════════════════════════════════════════════════════════════════════
 
 bool isSysFile(const char* name) {
@@ -145,7 +142,7 @@ String extractXml(const String& body, const String& tag) {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-//  EKRAN
+//  DISPLAY
 // ═════════════════════════════════════════════════════════════════════════════
 
 void drawRoundBar(int x, int y, int w, int h, int r, bool filled) {
@@ -153,7 +150,6 @@ void drawRoundBar(int x, int y, int w, int h, int r, bool filled) {
   else        display.drawRoundRect(x, y, w, h, r, SSD1306_WHITE);
 }
 
-// scrollName'i set et, scrollX'i başlangıç pozisyonuna getir
 void resetScroll() {
   if (upnpMode) {
     scrollName = dmrCurrentTitle.length() > 0 ? dmrCurrentTitle : dmrCurrentURI;
@@ -163,36 +159,28 @@ void resetScroll() {
     String tmp = scrollName; tmp.toLowerCase();
     if (tmp.endsWith(".mp3")) scrollName = scrollName.substring(0, scrollName.length() - 4);
   } else {
-    scrollName = "No song";
+    scrollName = "No track";
   }
-
-  // Kısa metin: ortala ve sabit tut
-  // Uzun metin: sağdan kayarak gir
   int textW = scrollName.length() * 6;
   if (textW <= 116) {
-    scrollX = 6 + (116 - textW) / 2;  // ortalı sabit
+    scrollX = 6 + (116 - textW) / 2;  // short: center and hold
   } else {
-    scrollX = SCREEN_WIDTH + 4;        // sağdan kayarak gelsin
+    scrollX = SCREEN_WIDTH + 4;        // long: scroll in from right
   }
 }
 
 void showStatus() {
-  if (screensaverActive) return;
-
   display.clearDisplay();
 
-  // Dış çerçeve
   display.drawRoundRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, 6, SSD1306_WHITE);
-  // Üst ayraç (başlık altı)
   display.drawFastHLine(2, 14, 124, SSD1306_WHITE);
-  // Alt ayraç (ses çubuğu üstü)
   display.drawFastHLine(2, 51, 124, SSD1306_WHITE);
 
   display.setTextSize(1);
   display.setTextColor(SSD1306_WHITE);
   display.setTextWrap(false);
 
-  // ── Başlık satırı ─────────────────────────────────────────────────────────
+  // Title bar
   display.setCursor(5, 4);
   display.print("PULSE-X");
   display.setCursor(70, 4);
@@ -204,7 +192,7 @@ void showStatus() {
     display.print(totalTracks);
   }
 
-  // ── Orta üst: Play/Pause ikon + durum yazısı (aynı satır, y=20) ──────────
+  // Middle top: icon + status (same line, y=20)
   display.setCursor(5, 20);
   if (isPlaying) {
     const char* frames[] = {">", ">>", ">>>", ">>", ">"};
@@ -215,30 +203,16 @@ void showStatus() {
   display.setCursor(30, 20);
   display.print(isPlaying ? "PLAY" : "PAUS");
 
-  // ── Orta alt: şarkı adı scroll (y=35) ────────────────────────────────────
+  // Middle bottom: track name scroll (y=35)
   display.setCursor(scrollX, 35);
   display.print(scrollName);
 
-  // ── Alt: ses çubuğu ───────────────────────────────────────────────────────
+  // Volume bar
   int barTotalW = 120;
   int barFillW  = constrain(map(volumePercent, 0, MAX_VOLUME, 0, barTotalW - 2), 0, barTotalW - 2);
   drawRoundBar(4, 53, barTotalW, 9, 3, false);
   if (barFillW > 0) drawRoundBar(5, 54, barFillW, 7, 3, true);
 
-  display.display();
-}
-
-void showScreensaver() {
-  display.clearDisplay();
-  display.setTextColor(SSD1306_WHITE);
-  display.setTextSize(2);
-  // "PULSE" — textSize 2'de her karakter ~12px
-  int pw = 5 * 12 + 4 * 2;
-  display.setCursor((SCREEN_WIDTH - pw) / 2, 10);
-  display.print("PULSE");
-  display.setTextSize(3);
-  display.setCursor((SCREEN_WIDTH - 18) / 2, 30);
-  display.print("X");
   display.display();
 }
 
@@ -255,34 +229,22 @@ void showMsg(const char* msg) {
   display.display();
 }
 
-// ── Scroll güncelle ───────────────────────────────────────────────────────────
 void updateScroll() {
-  if (screensaverActive) return;
   if (scrollName.length() == 0) return;
   if (millis() - lastScrollTime < SCROLL_MS) return;
   lastScrollTime = millis();
 
   int textW = scrollName.length() * 6;
-
-  // Kısa metin: scroll yok, sabit
   if (textW <= 116) {
-    // scrollX zaten resetScroll'da ortalandı, sadece ekranı güncelle
     showStatus();
     return;
   }
-
-  // Uzun metin: 1px smooth kayma
   scrollX -= 1;
-  // Metin tamamen sola çıktıysa sağdan tekrar başla
-  if (scrollX < -(textW + 8)) {
-    scrollX = SCREEN_WIDTH + 4;
-  }
+  if (scrollX < -(textW + 8)) scrollX = SCREEN_WIDTH + 4;
   showStatus();
 }
 
-// ── Animasyon güncelle ────────────────────────────────────────────────────────
 void updateAnim() {
-  if (screensaverActive) return;
   if (!isPlaying) return;
   if (millis() - lastAnimTime < ANIM_MS) return;
   lastAnimTime = millis();
@@ -290,26 +252,8 @@ void updateAnim() {
   showStatus();
 }
 
-// ── Screensaver ───────────────────────────────────────────────────────────────
-void updateScreensaver() {
-  if (millis() - lastActivityTime > SCREENSAVER_MS) {
-    if (!screensaverActive) {
-      screensaverActive = true;
-      showScreensaver();
-    }
-  }
-}
-
-void wakeScreensaver() {
-  if (screensaverActive) {
-    screensaverActive = false;
-    showStatus();
-  }
-  lastActivityTime = millis();
-}
-
 // ═════════════════════════════════════════════════════════════════════════════
-//  OYNATMA
+//  PLAYBACK
 // ═════════════════════════════════════════════════════════════════════════════
 
 void applyBassBoost() {
@@ -797,7 +741,7 @@ void handleSubscribe() {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-//  BUTONLAR
+//  BUTTONS
 // ═════════════════════════════════════════════════════════════════════════════
 
 void switchToSD() {
@@ -813,7 +757,7 @@ void switchToUPnP() {
   audio.stopSong();
   isPlaying = false;
   dmrTransportState = "STOPPED";
-  scrollName = "UPnP waiting for connection...";
+  scrollName = "UPnP waiting...";
   scrollX    = 4;
   showStatus();
 }
@@ -828,16 +772,6 @@ void checkButtons() {
   bool pl = digitalRead(BTN_PLAY);
   bool pr = digitalRead(BTN_PREV);
   bool nx = digitalRead(BTN_NEXT);
-
-  bool anyPressed = (up==LOW || dn==LOW || pl==LOW || pr==LOW || nx==LOW);
-  if (anyPressed) {
-    wakeScreensaver();
-    if (screensaverActive) {
-      upL=up; dnL=dn; plL=pl; prL=pr; nxL=nx;
-      lastBtnTime = millis();
-      return;
-    }
-  }
 
   bool changed = false;
 
@@ -901,7 +835,7 @@ void setup() {
 
   SPI.begin(SPI_SCK, SPI_MISO, SPI_MOSI, SD_CS);
   delay(100);
-  if (!SD.begin(SD_CS, SPI)) { showMsg("NO SD CARD"); while(1); }
+  if (!SD.begin(SD_CS, SPI)) { showMsg("NO SD CARD!"); while(1); }
   File root = SD.open("/");
   scanFolder(root); root.close();
 
@@ -916,7 +850,7 @@ void setup() {
   while (WiFi.status() != WL_CONNECTED && tries < 30) { delay(500); tries++; }
 
   if (WiFi.status() != WL_CONNECTED) {
-    showMsg("NO WiFi, SD MODE");
+    showMsg("No WiFi, SD mode");
     delay(1500);
   } else {
     Serial.println("IP: " + WiFi.localIP().toString());
@@ -947,13 +881,11 @@ void setup() {
     delay(1500);
   }
 
-  lastActivityTime = millis();
-
   if (totalTracks > 0) {
     resetScroll();
     playSys("/0001.mp3");
   } else {
-    showMsg("Could not find mp3");
+    showMsg("No MP3 found!");
   }
 }
 
@@ -977,14 +909,10 @@ void loop() {
     lastSsdpTime = millis();
   }
 
-  // Scroll her zaman çalışsın (startup bekleme kaldırıldı)
-  // updateAnim sadece isPlaying'de çalışıyor zaten
   if (!sysSoundPlaying) {
     updateScroll();
     updateAnim();
   }
-
-  updateScreensaver();
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
