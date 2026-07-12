@@ -1,15 +1,6 @@
 /*
  * PULSE-X — UPnP Digital Media Renderer (DMR)
  * ESP32-S3 N16R8
- *
- * DEĞİŞİKLİKLER:
- *  - Başlangıç sesi %50 (volumePercent = 11, MAX_VOLUME=21)
- *  - VOL yazısı kaldırıldı, sadece yumuşak köşeli bar
- *  - Scrolling text düzeltildi (şarkı ismi görünür)
- *  - BTN_PLAY → SD/UPnP mod geçişi
- *  - Şarkı alanında play/pause ASCII animasyon (▶ veya ▌▌)
- *  - Bass boost eklendi (setTone)
- *  - 2 dk tuşa basılmazsa screensaver (büyük PULSE-X)
  */
 
 #include <Wire.h>
@@ -22,7 +13,7 @@
 #include <WiFiUdp.h>
 #include <WebServer.h>
 
-// ── Pin tanımları ──────────────────────────────────────────────────────────────
+// ── Pin tanımları ─────────────────────────────────────────────────────────────
 #define SDA_PIN     8
 #define SCL_PIN     9
 #define SD_CS       10
@@ -32,11 +23,11 @@
 #define I2S_BCLK    5
 #define I2S_LRC     7
 #define I2S_DOUT    6
-#define BTN_VOL_UP  47 //3
-#define BTN_VOL_DN  40 //41
-#define BTN_PLAY    41   // 40
-#define BTN_PREV    3 //47
-#define BTN_NEXT    21 //21
+#define BTN_VOL_UP  47
+#define BTN_VOL_DN  41
+#define BTN_PLAY    40
+#define BTN_PREV    3
+#define BTN_NEXT    21
 
 // ── Ekran ─────────────────────────────────────────────────────────────────────
 #define SCREEN_WIDTH  128
@@ -46,8 +37,9 @@
 #define MAX_TRACKS        100
 #define MAX_VOLUME        21
 #define DEBOUNCE_MS       250
-#define SCROLL_MS         45         // scroll hızı (ms başına 2px)
-#define SCREENSAVER_MS    120000UL   // 2 dakika (ms)
+#define SCROLL_MS         30          // ms — küçük = daha smooth
+#define SCREENSAVER_MS    120000UL    // 2 dakika
+#define ANIM_MS           400
 
 // ── WiFi ──────────────────────────────────────────────────────────────────────
 #define WIFI_SSID "MSCCruse3"
@@ -72,33 +64,30 @@ int     totalTracks     = 0;
 int     currentTrackIdx = 0;
 
 // ── Durum ─────────────────────────────────────────────────────────────────────
-bool    isPlaying       = false;
-bool    upnpMode        = false;
-bool    pendingEof      = false;
-bool    startupDone     = false;
-bool    sysSoundPlaying = false;
+bool    isPlaying        = false;
+bool    upnpMode         = false;
+bool    pendingEof       = false;
+bool    startupDone      = false;
+bool    sysSoundPlaying  = false;
 
-int     volumePercent   = 11;        // ← %50 başlangıç (11/21)
-unsigned long lastBtnTime     = 0;
-unsigned long lastActivityTime = 0;  // screensaver için
+int     volumePercent    = 11;
+unsigned long lastBtnTime      = 0;
+unsigned long lastActivityTime = 0;
 bool    screensaverActive = false;
 
 // ── Scroll ────────────────────────────────────────────────────────────────────
-int   scrollX         = SCREEN_WIDTH;
+int           scrollX        = 4;
 unsigned long lastScrollTime = 0;
-String scrollName     = "";
-bool  scrollNeedsReset = false;
+String        scrollName     = "";
 
-// ── Play/pause animasyon karesi ───────────────────────────────────────────────
-// Şarkı alanında (sağ üst) gösterilir
-int   animFrame       = 0;
+// ── Animasyon ─────────────────────────────────────────────────────────────────
+int           animFrame    = 0;
 unsigned long lastAnimTime = 0;
-#define ANIM_MS  400
 
 // ── DMR state ─────────────────────────────────────────────────────────────────
-String dmrCurrentURI      = "";
-String dmrCurrentTitle    = "";
-String dmrTransportState  = "STOPPED";
+String dmrCurrentURI     = "";
+String dmrCurrentTitle   = "";
+String dmrTransportState = "STOPPED";
 
 // ── SSDP ──────────────────────────────────────────────────────────────────────
 unsigned long lastSsdpTime = 0;
@@ -143,7 +132,7 @@ String extractXml(const String& body, const String& tag) {
     s += open.length();
   }
   int e = body.indexOf(close, s);
-  if (e < 0) e = body.indexOf("</" , s);
+  if (e < 0) e = body.indexOf("</", s);
   if (e < 0) return "";
   String val = body.substring(s, e);
   val.trim();
@@ -159,64 +148,44 @@ String extractXml(const String& body, const String& tag) {
 //  EKRAN
 // ═════════════════════════════════════════════════════════════════════════════
 
+void drawRoundBar(int x, int y, int w, int h, int r, bool filled) {
+  if (filled) display.fillRoundRect(x, y, w, h, r, SSD1306_WHITE);
+  else        display.drawRoundRect(x, y, w, h, r, SSD1306_WHITE);
+}
+
+// scrollName'i set et, scrollX'i başlangıç pozisyonuna getir
 void resetScroll() {
-  scrollX = SCREEN_WIDTH + 4;
   if (upnpMode) {
     scrollName = dmrCurrentTitle.length() > 0 ? dmrCurrentTitle : dmrCurrentURI;
   } else if (totalTracks > 0) {
     scrollName = playlist[currentTrackIdx];
-    // başındaki "/" kaldır
     if (scrollName.startsWith("/")) scrollName = scrollName.substring(1);
-    // .mp3 uzantısını kaldır (büyük/küçük)
     String tmp = scrollName; tmp.toLowerCase();
-    if (tmp.endsWith(".mp3")) scrollName = scrollName.substring(0, scrollName.length()-4);
+    if (tmp.endsWith(".mp3")) scrollName = scrollName.substring(0, scrollName.length() - 4);
   } else {
-    scrollName = "Sarki yok";
+    scrollName = "No song";
+  }
+
+  // Kısa metin: ortala ve sabit tut
+  // Uzun metin: sağdan kayarak gir
+  int textW = scrollName.length() * 6;
+  if (textW <= 116) {
+    scrollX = 6 + (116 - textW) / 2;  // ortalı sabit
+  } else {
+    scrollX = SCREEN_WIDTH + 4;        // sağdan kayarak gelsin
   }
 }
 
-// Yumuşak köşeli dolgu dikdörtgen (köşe yarıçapı r)
-void drawRoundBar(int x, int y, int w, int h, int r, bool filled) {
-  if (filled) {
-    display.fillRoundRect(x, y, w, h, r, SSD1306_WHITE);
-  } else {
-    display.drawRoundRect(x, y, w, h, r, SSD1306_WHITE);
-  }
-}
-
-// ── Screensaver ───────────────────────────────────────────────────────────────
-void showScreensaver() {
-  display.clearDisplay();
-  display.setTextColor(SSD1306_WHITE);
-
-  // Büyük "PULSE" - size 2
-  display.setTextSize(2);
-  int pw = 5 * 12 + 4 * 2; // "PULSE" = 5 harf × 12px + boşluk
-  display.setCursor((SCREEN_WIDTH - pw) / 2, 10);
-  display.print("PULSE");
-
-  // Büyük "X" - size 3, ortalı
-  display.setTextSize(3);
-  int xw = 18;
-  display.setCursor((SCREEN_WIDTH - xw) / 2, 30);
-  display.print("X");
-
-  display.display();
-}
-
-// ── Ana durum ekranı ──────────────────────────────────────────────────────────
 void showStatus() {
-  if (screensaverActive) return; // screensaver açıkken showStatus çağrılmaz
+  if (screensaverActive) return;
 
   display.clearDisplay();
 
-  // Dış çerçeve - yumuşak köşe
+  // Dış çerçeve
   display.drawRoundRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, 6, SSD1306_WHITE);
-
-  // Üst bölüm ayraç
+  // Üst ayraç (başlık altı)
   display.drawFastHLine(2, 14, 124, SSD1306_WHITE);
-
-  // Alt bölüm ayraç (bar için)
+  // Alt ayraç (ses çubuğu üstü)
   display.drawFastHLine(2, 51, 124, SSD1306_WHITE);
 
   display.setTextSize(1);
@@ -226,8 +195,6 @@ void showStatus() {
   // ── Başlık satırı ─────────────────────────────────────────────────────────
   display.setCursor(5, 4);
   display.print("PULSE-X");
-
-  // Mod etiketi sağda
   display.setCursor(70, 4);
   if (upnpMode) {
     display.print("UPnP DMR");
@@ -237,61 +204,78 @@ void showStatus() {
     display.print(totalTracks);
   }
 
-  // ── Orta alan: animasyon ikonu (sol) + scrolling şarkı adı ───────────────
-  // Play/Pause ASCII animasyonu - sol tarafa
+  // ── Orta üst: Play/Pause ikon + durum yazısı (aynı satır, y=20) ──────────
   display.setCursor(5, 20);
   if (isPlaying) {
-    // Dönen animasyon kareleri
-    const char* frames[] = { ">  ", ">> ", ">>>", " >>", "  >" };
+    const char* frames[] = {">", ">>", ">>>", ">>", ">"};
     display.print(frames[animFrame % 5]);
   } else {
     display.print("||");
   }
+  display.setCursor(30, 20);
+  display.print(isPlaying ? "PLAY" : "PAUS");
 
-  // Scrolling şarkı adı - animasyonun sağından başla
-  // Kırpma alanı: x=30..123, y=18..30
-  // Basit clip: sadece o alandaki x konumuna yaz
-  display.setCursor(scrollX, 30);
+  // ── Orta alt: şarkı adı scroll (y=35) ────────────────────────────────────
+  display.setCursor(scrollX, 35);
   display.print(scrollName);
 
-  // ── Alt bar: sadece yumuşak köşeli ses çubuğu ────────────────────────────
-  // Bar alanı: x=4, y=53, genişlik=120, yükseklik=8
+  // ── Alt: ses çubuğu ───────────────────────────────────────────────────────
   int barTotalW = 120;
-  int barFillW  = map(volumePercent, 0, MAX_VOLUME, 0, barTotalW - 2);
-  barFillW = constrain(barFillW, 0, barTotalW - 2);
-
-  // Dış çerçeve (yumuşak köşe r=3)
+  int barFillW  = constrain(map(volumePercent, 0, MAX_VOLUME, 0, barTotalW - 2), 0, barTotalW - 2);
   drawRoundBar(4, 53, barTotalW, 9, 3, false);
-  // İç dolgu (biraz içeri al ki kenara yapışmasın)
-  if (barFillW > 0) {
-    drawRoundBar(5, 54, barFillW, 7, 3, true);
-  }
+  if (barFillW > 0) drawRoundBar(5, 54, barFillW, 7, 3, true);
 
+  display.display();
+}
+
+void showScreensaver() {
+  display.clearDisplay();
+  display.setTextColor(SSD1306_WHITE);
+  display.setTextSize(2);
+  // "PULSE" — textSize 2'de her karakter ~12px
+  int pw = 5 * 12 + 4 * 2;
+  display.setCursor((SCREEN_WIDTH - pw) / 2, 10);
+  display.print("PULSE");
+  display.setTextSize(3);
+  display.setCursor((SCREEN_WIDTH - 18) / 2, 30);
+  display.print("X");
   display.display();
 }
 
 void showMsg(const char* msg) {
   display.clearDisplay();
   display.drawRoundRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, 6, SSD1306_WHITE);
-  display.setTextSize(1); display.setTextColor(SSD1306_WHITE);
-  display.setCursor(5, 4); display.print("PULSE-X");
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(5, 4);
+  display.print("PULSE-X");
   display.drawFastHLine(2, 14, 124, SSD1306_WHITE);
-  display.setCursor(5, 24); display.print(msg);
+  display.setCursor(5, 24);
+  display.print(msg);
   display.display();
 }
 
 // ── Scroll güncelle ───────────────────────────────────────────────────────────
 void updateScroll() {
   if (screensaverActive) return;
-  if (!isPlaying) return;
   if (scrollName.length() == 0) return;
   if (millis() - lastScrollTime < SCROLL_MS) return;
   lastScrollTime = millis();
 
-  int textW = scrollName.length() * 6; // her karakter ~6px (textSize=1)
-  scrollX -= 2;
+  int textW = scrollName.length() * 6;
+
+  // Kısa metin: scroll yok, sabit
+  if (textW <= 116) {
+    // scrollX zaten resetScroll'da ortalandı, sadece ekranı güncelle
+    showStatus();
+    return;
+  }
+
+  // Uzun metin: 1px smooth kayma
+  scrollX -= 1;
+  // Metin tamamen sola çıktıysa sağdan tekrar başla
   if (scrollX < -(textW + 8)) {
-    scrollX = SCREEN_WIDTH + 4; // sağdan tekrar başla
+    scrollX = SCREEN_WIDTH + 4;
   }
   showStatus();
 }
@@ -306,7 +290,7 @@ void updateAnim() {
   showStatus();
 }
 
-// ── Screensaver kontrolü ──────────────────────────────────────────────────────
+// ── Screensaver ───────────────────────────────────────────────────────────────
 void updateScreensaver() {
   if (millis() - lastActivityTime > SCREENSAVER_MS) {
     if (!screensaverActive) {
@@ -329,8 +313,6 @@ void wakeScreensaver() {
 // ═════════════════════════════════════════════════════════════════════════════
 
 void applyBassBoost() {
-  // ESP32-audioI2S: setTone(int8_t bass, int8_t mid, int8_t treble)
-  // bass +6 dB, mid 0, treble 0
   audio.setTone(4, 0, 0);
 }
 
@@ -344,9 +326,9 @@ void playTrack(int idx) {
 }
 
 void dmrPlay(const String& uri, const String& title) {
-  dmrCurrentURI      = uri;
-  dmrCurrentTitle    = title;
-  dmrTransportState  = "PLAYING";
+  dmrCurrentURI     = uri;
+  dmrCurrentTitle   = title;
+  dmrTransportState = "PLAYING";
   audio.stopSong();
   delay(50);
   audio.connecttohost(uri.c_str());
@@ -396,21 +378,21 @@ void ssdpNotify(const char* nt, const char* nts, const char* usn) {
 void ssdpAlive() {
   ssdpNotify("upnp:rootdevice", "ssdp:alive", DEVICE_UUID "::upnp:rootdevice");
   delay(50);
-  ssdpNotify(DEVICE_UUID,       "ssdp:alive", DEVICE_UUID);
+  ssdpNotify(DEVICE_UUID, "ssdp:alive", DEVICE_UUID);
   delay(50);
-  ssdpNotify("urn:schemas-upnp-org:device:MediaRenderer:1",    "ssdp:alive",
+  ssdpNotify("urn:schemas-upnp-org:device:MediaRenderer:1", "ssdp:alive",
              DEVICE_UUID "::urn:schemas-upnp-org:device:MediaRenderer:1");
   delay(50);
-  ssdpNotify("urn:schemas-upnp-org:service:AVTransport:1",     "ssdp:alive",
+  ssdpNotify("urn:schemas-upnp-org:service:AVTransport:1", "ssdp:alive",
              DEVICE_UUID "::urn:schemas-upnp-org:service:AVTransport:1");
   delay(50);
-  ssdpNotify("urn:schemas-upnp-org:service:RenderingControl:1","ssdp:alive",
+  ssdpNotify("urn:schemas-upnp-org:service:RenderingControl:1", "ssdp:alive",
              DEVICE_UUID "::urn:schemas-upnp-org:service:RenderingControl:1");
 }
 
 void ssdpByebye() {
-  ssdpNotify("upnp:rootdevice",                              "ssdp:byebye", DEVICE_UUID "::upnp:rootdevice");
-  ssdpNotify(DEVICE_UUID,                                    "ssdp:byebye", DEVICE_UUID);
+  ssdpNotify("upnp:rootdevice", "ssdp:byebye", DEVICE_UUID "::upnp:rootdevice");
+  ssdpNotify(DEVICE_UUID,       "ssdp:byebye", DEVICE_UUID);
   ssdpNotify("urn:schemas-upnp-org:device:MediaRenderer:1", "ssdp:byebye",
              DEVICE_UUID "::urn:schemas-upnp-org:device:MediaRenderer:1");
 }
@@ -435,7 +417,7 @@ void handleSsdp() {
   int len = udpSsdp.parsePacket();
   if (len <= 0) return;
   char buf[512]; memset(buf, 0, sizeof(buf));
-  udpSsdp.read(buf, sizeof(buf)-1);
+  udpSsdp.read(buf, sizeof(buf) - 1);
   String pkt(buf);
   if (pkt.indexOf("M-SEARCH") < 0) return;
 
@@ -446,12 +428,12 @@ void handleSsdp() {
   int si = pkt.indexOf("ST:");
   if (si >= 0) {
     int ei = pkt.indexOf("\r\n", si);
-    st = pkt.substring(si+3, ei); st.trim();
+    st = pkt.substring(si + 3, ei); st.trim();
   }
 
   auto replyIfMatch = [&](const char* target) {
     if (st == "ssdp:all" || st == target) {
-      delay(random(50,200));
+      delay(random(50, 200));
       ssdpReply(from, port, target);
     }
   };
@@ -467,7 +449,6 @@ void handleSsdp() {
 // ═════════════════════════════════════════════════════════════════════════════
 
 void handleDescription() {
-  String ip = localIP();
   String xml = F(
     "<?xml version=\"1.0\"?>"
     "<root xmlns=\"urn:schemas-upnp-org:device-1-0\">"
@@ -549,23 +530,22 @@ String parseSoapAction(const String& body) {
   int start = body.indexOf('<', bi + 5);
   if (start < 0) return "";
   start++;
-  int colon  = body.indexOf(':', start);
-  int space  = body.indexOf(' ',  start);
-  int gt     = body.indexOf('>',  start);
+  int colon   = body.indexOf(':', start);
+  int space   = body.indexOf(' ',  start);
+  int gt      = body.indexOf('>',  start);
   int nameEnd = min(space < 0 ? 9999 : space, gt < 0 ? 9999 : gt);
-  String tag = body.substring(start, nameEnd);
-  if (colon >= start && colon < nameEnd) tag = tag.substring(tag.indexOf(':')+1);
+  String tag  = body.substring(start, nameEnd);
+  if (colon >= start && colon < nameEnd) tag = tag.substring(tag.indexOf(':') + 1);
   return tag;
 }
 
-// ── AVTransport ───────────────────────────────────────────────────────────────
 void handleAVT() {
   String body   = server.arg("plain");
   String action = parseSoapAction(body);
   if (action.length() == 0 && server.hasHeader("SOAPAction")) {
     String sa = server.header("SOAPAction");
-    int h = sa.lastIndexOf('#'); if (h >= 0) action = sa.substring(h+1);
-    action.replace("\"",""); action.replace(">",""); action.trim();
+    int h = sa.lastIndexOf('#'); if (h >= 0) action = sa.substring(h + 1);
+    action.replace("\"", ""); action.replace(">", ""); action.trim();
   }
   Serial.println("AVT Action: [" + action + "]");
 
@@ -750,14 +730,13 @@ void handleAVTScpd() {
 </scpd>)");
 }
 
-// ── RenderingControl ──────────────────────────────────────────────────────────
 void handleRC() {
   String body   = server.arg("plain");
   String action = parseSoapAction(body);
   if (action.length() == 0 && server.hasHeader("SOAPAction")) {
     String sa = server.header("SOAPAction");
-    int h = sa.lastIndexOf('#'); if (h >= 0) action = sa.substring(h+1);
-    action.replace("\"",""); action.replace(">",""); action.trim();
+    int h = sa.lastIndexOf('#'); if (h >= 0) action = sa.substring(h + 1);
+    action.replace("\"", ""); action.replace(">", ""); action.trim();
   }
   if (action == "SetVolume") {
     int v = extractXml(body, "DesiredVolume").toInt();
@@ -781,16 +760,15 @@ void handleRC() {
   soapRCOK(action);
 }
 
-// ── ConnectionManager ─────────────────────────────────────────────────────────
 void handleCM() {
   String body2  = server.arg("plain");
   String action = parseSoapAction(body2);
   if (action.length() == 0 && server.hasHeader("SOAPAction")) {
     String sa = server.header("SOAPAction");
-    int h = sa.lastIndexOf('#'); if (h >= 0) action = sa.substring(h+1);
-    action.replace("\"",""); action.replace(">",""); action.trim();
+    int h = sa.lastIndexOf('#'); if (h >= 0) action = sa.substring(h + 1);
+    action.replace("\"", ""); action.replace(">", ""); action.trim();
   }
-  String ns = "urn:schemas-upnp-org:service:ConnectionManager:1";
+  String ns    = "urn:schemas-upnp-org:service:ConnectionManager:1";
   String extra = "";
   if (action == "GetProtocolInfo") {
     extra =
@@ -831,12 +809,12 @@ void switchToSD() {
 }
 
 void switchToUPnP() {
-  upnpMode = true;
+  upnpMode  = true;
   audio.stopSong();
   isPlaying = false;
   dmrTransportState = "STOPPED";
-  scrollName = "UPnP bekleniyor...";
-  scrollX = SCREEN_WIDTH;
+  scrollName = "UPnP waiting for connection...";
+  scrollX    = 4;
   showStatus();
 }
 
@@ -855,7 +833,6 @@ void checkButtons() {
   if (anyPressed) {
     wakeScreensaver();
     if (screensaverActive) {
-      // sadece uyandır, tuşu işleme
       upL=up; dnL=dn; plL=pl; prL=pr; nxL=nx;
       lastBtnTime = millis();
       return;
@@ -864,31 +841,24 @@ void checkButtons() {
 
   bool changed = false;
 
-  // ── VOL UP ────────────────────────────────────────────────────────────────
   if (up==LOW && upL==HIGH) {
-    volumePercent = min(MAX_VOLUME, volumePercent+1);
+    volumePercent = min(MAX_VOLUME, volumePercent + 1);
     audio.setVolume(volumePercent);
     showStatus(); changed = true;
   } upL = up;
 
-  // ── VOL DN ────────────────────────────────────────────────────────────────
   if (dn==LOW && dnL==HIGH) {
-    volumePercent = max(0, volumePercent-1);
+    volumePercent = max(0, volumePercent - 1);
     audio.setVolume(volumePercent);
     showStatus(); changed = true;
   } dnL = dn;
 
-  // ── PLAY → MOD GEÇİŞİ (SD ↔ UPnP) ───────────────────────────────────────
   if (pl==LOW && plL==HIGH) {
-    if (!upnpMode) {
-      switchToUPnP();
-    } else {
-      switchToSD();
-    }
+    if (!upnpMode) switchToUPnP();
+    else           switchToSD();
     changed = true;
   } plL = pl;
 
-  // ── SD modunda PREV / NEXT ────────────────────────────────────────────────
   if (!upnpMode) {
     if (pr==LOW && prL==HIGH) {
       currentTrackIdx = (currentTrackIdx - 1 + totalTracks) % totalTracks;
@@ -900,7 +870,6 @@ void checkButtons() {
       playTrack(currentTrackIdx); changed = true;
     } nxL = nx;
   } else {
-    // UPnP modunda PREV+NEXT → SD'ye dön (eski davranış, yedek olarak kalıyor)
     if (pr==LOW && nx==LOW) {
       switchToSD(); changed = true;
       delay(400);
@@ -928,19 +897,18 @@ void setup() {
   if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) while(1);
   display.setTextWrap(false);
   display.setRotation(2);
-  showMsg("Baslatiliyor...");
+  showMsg("Starting...");
 
   SPI.begin(SPI_SCK, SPI_MISO, SPI_MOSI, SD_CS);
   delay(100);
-  if (!SD.begin(SD_CS, SPI)) { showMsg("SD KART YOK!"); while(1); }
+  if (!SD.begin(SD_CS, SPI)) { showMsg("NO SD CARD"); while(1); }
   File root = SD.open("/");
   scanFolder(root); root.close();
 
   audio.setPinout(I2S_BCLK, I2S_LRC, I2S_DOUT);
   audio.setVolume(volumePercent);
-  applyBassBoost();   // ← Bass boost
+  applyBassBoost();
 
-  // WiFi
   showMsg("WiFi...");
   WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
@@ -948,7 +916,7 @@ void setup() {
   while (WiFi.status() != WL_CONNECTED && tries < 30) { delay(500); tries++; }
 
   if (WiFi.status() != WL_CONNECTED) {
-    showMsg("WiFi yok, SD mod");
+    showMsg("NO WiFi, SD MODE");
     delay(1500);
   } else {
     Serial.println("IP: " + WiFi.localIP().toString());
@@ -983,9 +951,9 @@ void setup() {
 
   if (totalTracks > 0) {
     resetScroll();
-    playSys("/0001.mp3");  // startup sesi
+    playSys("/0001.mp3");
   } else {
-    showMsg("MP3 bulunamadi!");
+    showMsg("Could not find mp3");
   }
 }
 
@@ -1009,7 +977,9 @@ void loop() {
     lastSsdpTime = millis();
   }
 
-  if (startupDone && !sysSoundPlaying) {
+  // Scroll her zaman çalışsın (startup bekleme kaldırıldı)
+  // updateAnim sadece isPlaying'de çalışıyor zaten
+  if (!sysSoundPlaying) {
     updateScroll();
     updateAnim();
   }
@@ -1021,23 +991,24 @@ void loop() {
 //  AUDIO CALLBACKS
 // ═════════════════════════════════════════════════════════════════════════════
 
-void audio_info(const char* info)            { Serial.println(info); }
+void audio_info(const char* info) { Serial.println(info); }
+
 void audio_showstreamtitle(const char* info) {
-  // UPnP stream'de başlık gelirse göster
   if (upnpMode && info && strlen(info) > 0) {
     dmrCurrentTitle = String(info);
     resetScroll();
   }
   Serial.print("TITLE: "); Serial.println(info);
 }
+
 void audio_bitrate(const char* info) { Serial.print("BITRATE: "); Serial.println(info); }
-void audio_id3data(const char* info) { Serial.print("ID3: "); Serial.println(info); }
+void audio_id3data(const char* info) { Serial.print("ID3: ");     Serial.println(info); }
 
 void audio_eof_mp3(const char* info) {
   Serial.print("EOF: "); Serial.println(info);
 
   if (!startupDone) {
-    startupDone    = true;
+    startupDone     = true;
     sysSoundPlaying = false;
     if (!upnpMode && totalTracks > 0) playTrack(0);
     return;
