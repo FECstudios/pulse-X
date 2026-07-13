@@ -191,6 +191,50 @@ Author: craftfec
 Today i countinued my day by writing the firmware but recieved the sad news that my friend couldnt flash anything on the chip i previously tested and managed to work then continued by trying to help him but achieved no success with the esp32 s3 AND the oled screen hopefully we will meet sometime and get those fixed
 <img width="509" height="357" alt="image" src="https://github.com/user-attachments/assets/44a569ba-b7af-4641-815b-07bc0479fe03" />
 
-**Total time spent: 3h 37s**
+**Total time spent: 6h 20s**
 Recordings:
+https://lapse.hackclub.com/timelapse/LaqP55hy5ArD
 https://lapse.hackclub.com/timelapse/Q2pDoU28dboI
+
+# July 8th: Issues with speakers
+Author: D_R1N
+
+Today i countinued with soldering of the speakers but i couldnt get them to work with my Esp32D in the end the chip started overheating
+<img width="279" height="153" alt="image" src="https://github.com/user-attachments/assets/18dd24d5-2676-4cc3-994c-d9c76129437d" />
+
+**Total time spent: 2h 16m**
+Recordings:
+https://lapse.hackclub.com/timelapse/n-Ss9dm3OcC4
+
+# July 9th: The big meetup and solder
+Author: D_R1N
+
+Today we finally met up in my friends place and he finally got his hands on the project. We started the work with getting the esp32d out since it was short circuting. Then we fixed the oled screen and soldered all of the pieces together
+<img width="200" height="164" alt="image" src="https://github.com/user-attachments/assets/1362de77-466e-4377-b2ff-83ae4e1a6fc5" />
+
+
+**Total time spent: 1h 59m 1s**
+Recordings:
+https://lapse.hackclub.com/timelapse/Yu9Xosdbv95M
+
+# July 9th: The big meetup and code
+Author: craftfec
+
+Today we finally met up in my place and i finally got my hands on the project. After finishing up all of the wiring we had some issues with the code since i was uploading the code but the device did not recieve it or kept rebooting at the end the issue was fixed by increasing the mb and fixing psram settings from the arduino ide
+
+<img width="349" height="229" alt="image" src="https://github.com/user-attachments/assets/b159f0ba-ef0a-46fa-855d-fc984cdf5d31" />
+
+**Total time spent: 4h**
+Recordings:
+https://lapse.hackclub.com/timelapse/Iv2Pfilxi044
+
+# July 11th: The 2nd big meetup and wifi connectivity
+Author: craftfec
+
+Today we met up again and worked a lot on getting the wifi functionality with UPNP and i fixed the cad models of the parts that showed issues in the model
+<img width="258" height="126" alt="image" src="https://github.com/user-attachments/assets/457f13e4-ac90-4118-b7ae-632615ddc0ef" />
+
+
+**Total time spent: 5h 32m 10s**
+Recordings:
+https://lapse.hackclub.com/timelapse/v2fOV9HvRw3P
