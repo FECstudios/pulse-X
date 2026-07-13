@@ -1,6 +1,6 @@
 title: PULSE-X
 author: Kuzey (@craftfec) and Derin (@D_R1N)
-description: Description
+description: Pulse-X is a portable battery powered cylindrical speaker engineered for high-noise outdoor environments, such as sports stadiums and open-air events.
 created_at: "2026-06-26"
 
 # June 26th: Started the project!
