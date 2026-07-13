@@ -1,6 +1,6 @@
 # Pulse-X: Crowd Cheering Tool
 
-Pulse-X is a portable battery powered cylindrical speaker engineered for high-noise outdoor environments, such as sports stadiums and open-air events. Works with wifi, bluetooth or locally with a sd card.
+Pulse-X is a portable battery powered cylindrical speaker engineered for high-noise outdoor environments, such as sports stadiums and open-air events. Works with wifi, bluetooth or locally with a sd card. Made this project to be used in VEX and FIRST competitions.
 
 ## Renders
 <img width="686" height="403" alt="Pulse-X Hardware View" src="https://github.com/user-attachments/assets/dc31d1af-a8e4-449f-8a6b-3aa0df101d61" />
@@ -17,7 +17,7 @@ Pulse-X is powered by an ESP32-S3-WROOM-1. The ESP32 handles the web interface, 
 
 ## Features
 
-- Creates its own Wi-Fi access point, allowing devices to connect directly to the speaker without an internet connection.
+- Joins a public wifi, allowing devices to connect to it with BubbleUPnP or MediaMonkey
 - Uses a PCM5102A I2S DAC for clean digital audio output.
 - Uses a VHM-314 instead of built in bluetooth for smoother audio.
 - 128×64 OLED display showing the current mode, volume level, playback status, and scrolling track names.
@@ -25,6 +25,7 @@ Pulse-X is powered by an ESP32-S3-WROOM-1. The ESP32 handles the web interface, 
 - Powered by a 3-cell Li-ion battery pack with a 3S BMS for battery protection and a buck converter to provide power to the components.
 - Bluetooth, wi-fi AND sd card connectivity.
 - On/Off and connection sounds
+- Bluetooth module can be integrated as shown in schematics but its optional
 
 ---
 
@@ -45,7 +46,7 @@ Pulse-X is powered by an ESP32-S3-WROOM-1. The ESP32 handles the web interface, 
 - 3S 20A Battery Management System (BMS)
 - 3S Li-ion/LiPo 12.6 V 2A Charging Module
 - KCD1-101 3-Pin Mini Power Switch
-- VHM-314 Bluetooth module
+- VHM-314 Bluetooth module   // OPTIONAL
 
 | NAME | QUANTITY | PRICE PER UNIT (TL) | TOTAL (TL) | SELLER | SHIPPING (TL) | LINK |
 |------|---------:|--------------------:|-----------:|--------|--------------:|------|
