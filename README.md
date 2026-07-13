@@ -9,7 +9,9 @@ Pulse-X is a portable battery powered cylindrical speaker engineered for high-no
 <img width="3000" height="2560" alt="circuit_image (6)" src="https://github.com/user-attachments/assets/5f80c291-9151-49b9-a680-37598e868892" />
 
 ## Images
+<img width="1019" height="571" alt="image" src="https://github.com/user-attachments/assets/03ea0b9d-58d1-4bae-b5d7-3ef0825b037f" />
 
+Demo Video: https://www.youtube.com/shorts/XgMtZgEX2DE
 ---
 # Technical Overview
 
