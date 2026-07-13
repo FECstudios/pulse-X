@@ -244,6 +244,7 @@ https://lapse.hackclub.com/timelapse/v2fOV9HvRw3P
 Author: craftfec
 
 Today was a beautiful morning since we succesfully finished the demo of the project and filmed the demo video, uploaded the finally done code to github. Downloaded some of the offline songs we wanted.
+
 <img width="488" height="286" alt="image" src="https://github.com/user-attachments/assets/37865057-22c0-420a-9f14-63902dd7398b" />
 
 
