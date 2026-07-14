@@ -74,7 +74,7 @@ Pulse-X is powered by an ESP32-S3-WROOM-1. The ESP32 handles the web interface, 
 # Software
 
 Pulse-X can be programmed using either the Arduino IDE or ESP-IDF.
-Preprogrammed versions are available at firmware/bluetooth.ino firmware/onlySD.ino firmware/wifiOnly.ino 
+Preprogrammed versions are available at firmware/bluetooth.ino firmware/onlySD.ino firmware/wifinsd.ino 
 
 ---
 
